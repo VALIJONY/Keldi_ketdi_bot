@@ -1,11 +1,18 @@
-BOT_TOKEN = "8658890392:AAHhoGOssSPJEiKugSmfT4k85Irhh7CcBAk"
+import os
+from dotenv import load_dotenv
 
-ADMIN_IDS = [8678017540] 
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+ADMIN_IDS = [8678017540, 6106654173]
 
 TIMEZONE = "Asia/Tashkent"
 
-POLL_HOUR = 9     
+POLL_HOUR = 11
 POLL_MINUTE = 0
 
-REPORT_HOUR = 10
+REPORT_HOUR = 12
 REPORT_MINUTE = 0
+
+MANUAL_POLL_WAIT_MINUTES = 15

@@ -1,12 +1,13 @@
+import asyncio
 from datetime import date
 
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
-from config import ADMIN_IDS
-from app.database import get_employee_list, remove_employee, get_today_attendance
-from app.keyboards.inline import employee_remove_keyboard
+from config import ADMIN_IDS, MANUAL_POLL_WAIT_MINUTES
+from app.database import get_employee_list, get_active_employees, remove_employee, get_today_attendance
+from app.keyboards.inline import employee_remove_keyboard, attendance_keyboard
 
 router = Router()
 
@@ -73,6 +74,44 @@ async def cmd_report(message: Message):
     await message.answer(report, parse_mode="HTML")
 
 
+@router.message(Command("poll"), admin_only)
+async def cmd_poll(message: Message):
+    # /poll 10 — 10 minut kutadi, /poll — config dagi default
+    args = message.text.split()
+    if len(args) > 1 and args[1].isdigit():
+        wait = int(args[1])
+    else:
+        wait = MANUAL_POLL_WAIT_MINUTES
+
+    employees = await get_active_employees()
+    count = 0
+    for emp in employees:
+        try:
+            await message.bot.send_message(
+                emp["user_id"],
+                "🌅 Assalomu alaykum!\n\nBugun ishga kelasizmi?",
+                reply_markup=attendance_keyboard(),
+            )
+            count += 1
+        except Exception:
+            pass
+
+    await message.answer(
+        f"✅ So'rov {count} ta hodimga yuborildi.\n"
+        f"⏱ Hisobot {wait} daqiqadan so'ng avtomatik keladi."
+    )
+
+    await asyncio.sleep(wait * 60)
+
+    today = date.today().isoformat()
+    report = await build_report(today)
+    for admin_id in ADMIN_IDS:
+        try:
+            await message.bot.send_message(admin_id, report, parse_mode="HTML")
+        except Exception:
+            pass
+
+
 @router.message(Command("help"), admin_only)
 async def cmd_help(message: Message):
     await message.answer(
@@ -80,6 +119,8 @@ async def cmd_help(message: Message):
         "/list — Hodimlar ro'yxati\n"
         "/remove — Hodimni o'chirish\n"
         "/report — Bugungi davomat hisoboti\n"
+        f"/poll — So'rov yuborish ({MANUAL_POLL_WAIT_MINUTES} daq kutadi)\n"
+        "/poll 10 — So'rov yuborish (10 daq kutadi)\n"
         "/help — Ushbu yordam",
         parse_mode="HTML",
     )
