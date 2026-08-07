@@ -135,10 +135,11 @@ async def build_report(today: str) -> str:
 
     for r in records:
         name = r["full_name"]
+        reason = r["reason"]
         if r["response"] == "yes":
             coming.append(name)
         elif r["response"] == "no":
-            not_coming.append(name)
+            not_coming.append({"name": name, "reason": reason})
         else:
             no_response.append(name)
 
@@ -151,8 +152,9 @@ async def build_report(today: str) -> str:
         text += "  — hech kim\n"
 
     text += f"\n❌ <b>Kelmaydi ({len(not_coming)}):</b>\n"
-    for name in not_coming:
-        text += f"  • {name}\n"
+    for item in not_coming:
+        reason_text = f" — <i>{item['reason']}</i>" if item["reason"] else ""
+        text += f"  • {item['name']}{reason_text}\n"
     if not not_coming:
         text += "  — hech kim\n"
 

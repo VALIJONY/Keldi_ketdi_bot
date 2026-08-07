@@ -22,10 +22,15 @@ async def init_db():
                 user_id INTEGER NOT NULL,
                 date TEXT NOT NULL,
                 response TEXT NOT NULL,
+                reason TEXT,
                 responded_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(user_id, date)
             )
         """)
+        try:
+            await db.execute("ALTER TABLE attendance ADD COLUMN reason TEXT")
+        except Exception:
+            pass
         await db.commit()
 
 
@@ -55,13 +60,45 @@ async def get_active_employees():
         return await cursor.fetchall()
 
 
-async def record_attendance(user_id: int, date: str, response: str):
+async def record_attendance(user_id: int, date: str, response: str, reason: str | None = None):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT OR REPLACE INTO attendance (user_id, date, response) VALUES (?, ?, ?)",
-            (user_id, date, response),
+            "INSERT OR REPLACE INTO attendance (user_id, date, response, reason) VALUES (?, ?, ?, ?)",
+            (user_id, date, response, reason),
         )
         await db.commit()
+
+
+async def update_attendance_reason(user_id: int, date: str, reason: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE attendance SET reason = ? WHERE user_id = ? AND date = ?",
+            (reason, user_id, date),
+        )
+        await db.commit()
+
+
+async def has_responded_today(user_id: int, date: str) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT 1 FROM attendance WHERE user_id = ? AND date = ?", (user_id, date)
+        )
+        return await cursor.fetchone() is not None
+
+
+async def get_unresponded_employees(date: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """
+            SELECT e.user_id, e.full_name
+            FROM employees e
+            LEFT JOIN attendance a ON e.user_id = a.user_id AND a.date = ?
+            WHERE e.is_active = 1 AND a.id IS NULL
+            """,
+            (date,),
+        )
+        return await cursor.fetchall()
 
 
 async def get_today_attendance(date: str):
@@ -69,7 +106,7 @@ async def get_today_attendance(date: str):
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             """
-            SELECT e.full_name, e.username, a.response
+            SELECT e.full_name, e.username, a.response, a.reason
             FROM employees e
             LEFT JOIN attendance a ON e.user_id = a.user_id AND a.date = ?
             WHERE e.is_active = 1
