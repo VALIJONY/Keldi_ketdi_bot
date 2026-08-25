@@ -1,11 +1,18 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
-def attendance_keyboard() -> InlineKeyboardMarkup:
+def attendance_keyboard(session_id: str | None = None, yes_text: str = "✅ Ha, kelaman", no_text: str = "❌ Yo'q, kelmayman") -> InlineKeyboardMarkup:
+    if session_id:
+        yes_data = f"poll_yes:{session_id}"
+        no_data = f"poll_no:{session_id}"
+    else:
+        yes_data = "attend_yes"
+        no_data = "attend_no"
+
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Ha, kelaman", callback_data="attend_yes"),
-            InlineKeyboardButton(text="❌ Yo'q, kelmayman", callback_data="attend_no"),
+            InlineKeyboardButton(text=yes_text, callback_data=yes_data),
+            InlineKeyboardButton(text=no_text, callback_data=no_data),
         ]
     ])
 
